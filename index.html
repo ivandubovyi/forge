@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FORGE</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js"></script>
 <style>
   :root {
     --bg: #0a0a0b;
@@ -507,7 +507,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // ============================================================
 
 const { createClient } = supabase;
-const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: true, autoRefreshToken: true } });
 
 // ── STATE ──────────────────────────────────────────────────
 const state = {
@@ -525,17 +525,25 @@ const state = {
 };
 
 // ── INIT ───────────────────────────────────────────────────
+// Safety timeout — never get stuck loading more than 8 seconds
+const loadingTimeout = setTimeout(() => { hideLoading(); showAuth(); }, 8000);
+
 window.addEventListener('DOMContentLoaded', async () => {
+  // Check local session cache first (instant, no network)
   const { data: { session } } = await sb.auth.getSession();
   if (session) {
     state.user = session.user;
     await loadUserProfile();
+  } else {
+    hideLoading();
+    showAuth();
   }
-  hideLoading();
+  clearTimeout(loadingTimeout);
 });
 
 sb.auth.onAuthStateChange(async (event, session) => {
   if (event === 'SIGNED_IN' && session) {
+    clearTimeout(loadingTimeout);
     state.user = session.user;
     await loadUserProfile();
     hideLoading();
@@ -670,35 +678,41 @@ async function handleLogout() {
 
 // ── LOAD PROFILE ───────────────────────────────────────────
 async function loadUserProfile() {
-  const { data: profile } = await sb.from('profiles').select('*').eq('id', state.user.id).single();
-  if (profile) {
-    state.profile = profile;
-    state.name = profile.full_name || 'Athlete';
+  // Fetch all 3 data sources in parallel — 3x faster than sequential
+  const [profileRes, progressRes, planRes] = await Promise.all([
+    sb.from('profiles').select('*').eq('id', state.user.id).single(),
+    sb.from('progress').select('*').eq('user_id', state.user.id).single(),
+    sb.from('workout_plans').select('*').eq('user_id', state.user.id).order('created_at', { ascending: false }).limit(1).single()
+  ]);
+
+  // Profile
+  if (profileRes.data) {
+    state.profile = profileRes.data;
+    state.name = profileRes.data.full_name || 'Athlete';
     updateUserPill();
   }
 
-  // Load progress data
-  const { data: progress } = await sb.from('progress').select('*').eq('user_id', state.user.id).single();
-  if (progress) {
-    state.completedDays = progress.completed_days || {};
-    state.checkedExercises = progress.checked_exercises || {};
-    state.waterCups = progress.water_cups || 0;
+  // Progress
+  if (progressRes.data) {
+    state.completedDays = progressRes.data.completed_days || {};
+    state.checkedExercises = progressRes.data.checked_exercises || {};
+    state.waterCups = progressRes.data.water_cups || 0;
   }
 
-  // Load workout plan
-  const { data: planData } = await sb.from('workout_plans').select('*').eq('user_id', state.user.id).order('created_at', { ascending: false }).limit(1).single();
-  if (planData) {
-    state.age = planData.age;
-    state.weight = planData.weight;
-    state.height = planData.height;
-    state.goal = planData.goal;
-    state.reps = planData.reps;
-    state.level = planData.level;
+  // Workout plan — if exists, go straight to plan page
+  if (planRes.data) {
+    state.age = planRes.data.age;
+    state.weight = planRes.data.weight;
+    state.height = planRes.data.height;
+    state.goal = planRes.data.goal;
+    state.reps = planRes.data.reps;
+    state.level = planRes.data.level;
     state.plan = buildFullPlan(state.level);
     showApp();
     goTo(3);
     renderPlanPage();
   } else {
+    // No plan yet — go to intro to set up
     showApp();
     goTo(0);
   }

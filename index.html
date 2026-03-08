@@ -269,21 +269,10 @@
   }
   @media(max-width:480px) { .calendar-grid { grid-template-columns:repeat(3,1fr); } }
 
-  /* ── LOADING ── */
-  .spinner { width:20px; height:20px; border:2px solid rgba(232,255,71,0.2); border-top-color:var(--accent); border-radius:50%; animation:spin 0.7s linear infinite; }
-  @keyframes spin { to{transform:rotate(360deg)} }
-  .loading-screen { position:fixed; inset:0; background:var(--bg); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; z-index:1000; transition:opacity 0.4s; }
-  .loading-screen.hidden { opacity:0; pointer-events:none; }
-  .loading-logo { font-family:'Bebas Neue',sans-serif; font-size:3rem; color:var(--accent); }
+
 </style>
 </head>
 <body>
-
-<!-- Loading -->
-<div class="loading-screen" id="loadingScreen">
-  <div class="loading-logo">FORGE.</div>
-  <div class="spinner"></div>
-</div>
 
 <!-- Toast -->
 <div class="toast" id="toast"></div>
@@ -532,47 +521,30 @@ const state = {
 };
 
 // ── INIT ───────────────────────────────────────────────────
-// Safety timeout — never stuck more than 5 seconds
-const loadingTimeout = setTimeout(() => { hideLoading(); showAuth(); }, 5000);
-
 window.addEventListener('DOMContentLoaded', async () => {
-  // Check localStorage for a cached session token — instant, zero network
+  // Show auth screen immediately — no loading screen
+  showAuth();
+  // Check for existing session in background
   const hasLocalSession = Object.keys(localStorage).some(k => k.startsWith('sb-'));
-  if (!hasLocalSession) {
-    // No session stored — go straight to login, no need to hit network
-    clearTimeout(loadingTimeout);
-    hideLoading();
-    showAuth();
-    return;
+  if (hasLocalSession) {
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) {
+      state.user = session.user;
+      await loadUserProfile();
+    }
   }
-  // Has a stored session — restore it
-  const { data: { session } } = await sb.auth.getSession();
-  if (session) {
-    state.user = session.user;
-    await loadUserProfile();
-  } else {
-    hideLoading();
-    showAuth();
-  }
-  clearTimeout(loadingTimeout);
 });
 
 sb.auth.onAuthStateChange(async (event, session) => {
   if (event === 'SIGNED_IN' && session) {
-    clearTimeout(loadingTimeout);
     state.user = session.user;
     await loadUserProfile();
-    hideLoading();
   } else if (event === 'SIGNED_OUT') {
     state.user = null;
     state.profile = null;
     showAuth();
   }
 });
-
-function hideLoading() {
-  document.getElementById('loadingScreen').classList.add('hidden');
-}
 
 function showAuth() {
   document.getElementById('authScreen').style.display = 'flex';

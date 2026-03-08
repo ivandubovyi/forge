@@ -3,9 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FORGE</title>
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js"></script>
+<title>FORGE — Build Your Body</title>
+<!-- Preconnect for faster DNS -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<!-- Fonts: non-blocking -->
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<noscript><link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"></noscript>
+<!-- Supabase: minified version -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.min.js"></script>
 <style>
   :root {
     --bg: #0a0a0b;
@@ -525,11 +532,20 @@ const state = {
 };
 
 // ── INIT ───────────────────────────────────────────────────
-// Safety timeout — never get stuck loading more than 8 seconds
-const loadingTimeout = setTimeout(() => { hideLoading(); showAuth(); }, 8000);
+// Safety timeout — never stuck more than 5 seconds
+const loadingTimeout = setTimeout(() => { hideLoading(); showAuth(); }, 5000);
 
 window.addEventListener('DOMContentLoaded', async () => {
-  // Check local session cache first (instant, no network)
+  // Check localStorage for a cached session token — instant, zero network
+  const hasLocalSession = Object.keys(localStorage).some(k => k.startsWith('sb-'));
+  if (!hasLocalSession) {
+    // No session stored — go straight to login, no need to hit network
+    clearTimeout(loadingTimeout);
+    hideLoading();
+    showAuth();
+    return;
+  }
+  // Has a stored session — restore it
   const { data: { session } } = await sb.auth.getSession();
   if (session) {
     state.user = session.user;

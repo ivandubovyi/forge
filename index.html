@@ -582,53 +582,43 @@ const state = {
 };
 
 // ── INIT ───────────────────────────────────────────────────
-window.addEventListener('DOMContentLoaded', async () => {
-  // Try to load from local cache first — instant, zero network needed
-  const cachedProfile = localStorage.getItem('forge_profile');
-  const hasLocalSession = Object.keys(localStorage).some(k => k.startsWith('sb-'));
-
-  if (hasLocalSession && cachedProfile) {
-    // Restore state from cache and show app immediately
-    try {
-      const p = JSON.parse(cachedProfile);
-      state.name = p.name || 'Athlete';
-      state.age = p.age; state.weight = p.weight; state.height = p.height;
-      state.goal = p.goal; state.reps = p.reps; state.level = p.level;
-      state.completedDays = p.completedDays || {};
-      state.checkedExercises = p.checkedExercises || {};
-      state.waterCups = p.waterCups || 0;
-      state.plan = buildFullPlan(state.level);
-      showApp();
-      updateUserPill();
-      goTo(3);
-      renderPlanPage();
-      // Verify session is still valid in background, refresh data silently
-      sb.auth.getSession().then(({ data: { session } }) => {
-        if (session) {
-          state.user = session.user;
-          // Silently refresh from DB in background
-          loadUserProfile().catch(() => {});
-        } else {
-          // Session expired — go back to login
-          localStorage.removeItem('forge_profile');
-          showAuth();
-        }
-      });
-      return;
-    } catch(e) {}
-  }
-
-  // No cache — show login screen
-  showAuth();
-
-  // Still check for valid session in background
-  if (hasLocalSession) {
-    const { data: { session } } = await sb.auth.getSession();
-    if (session) {
-      state.user = session.user;
-      await loadUserProfile();
+// Run this BEFORE DOMContentLoaded — absolute earliest possible moment
+(function() {
+  try {
+    const p = JSON.parse(localStorage.getItem('forge_profile') || '{}');
+    if (p.level && p.name) {
+      // Tag so DOMContentLoaded knows to skip login
+      window._forgeHasCache = p;
     }
+  } catch(e) {}
+})();
+
+window.addEventListener('DOMContentLoaded', async () => {
+  const p = window._forgeHasCache;
+
+  if (p) {
+    // Restore from cache and jump straight to app — zero delay
+    state.name = p.name || 'Athlete';
+    state.age = p.age; state.weight = p.weight; state.height = p.height;
+    state.goal = p.goal; state.reps = p.reps; state.level = p.level;
+    state.gender = p.gender || 'male';
+    state.completedDays = p.completedDays || {};
+    state.checkedExercises = p.checkedExercises || {};
+    state.waterCups = p.waterCups || 0;
+    state.plan = buildFullPlan(state.level);
+    showApp();
+    updateUserPill();
+    goTo(3);
+    renderPlanPage();
+    // Background session refresh — never blocks UI, never kicks user out
+    sb.auth.getSession().then(({ data: { session } }) => {
+      if (session) { state.user = session.user; loadUserProfile().catch(()=>{}); }
+    }).catch(()=>{});
+    return;
   }
+
+  // No cache — show login immediately
+  showAuth();
 });
 
 sb.auth.onAuthStateChange(async (event, session) => {
@@ -1092,14 +1082,14 @@ const exerciseDB = {
   ]
 };
 
-function getReps(base, sets, level, gender) {
-  // Lower multipliers — start easy, build slowly
-  const m = { Beginner:0.35, Intermediate:0.6, Advanced:0.9, Master:1.2 }[level];
+function getReps(base, sets, level, gender, week) {
+  // Very gradual progression — start low, add ~5% per week
+  const levelBase = { Beginner:0.28, Intermediate:0.50, Advanced:0.75, Master:1.0 }[level];
+  const weekBonus = 1 + ((week || 0) * 0.05); // +5% each week
   const gm = gender === 'female' ? 0.85 : 1.0;
-  return {
-    reps: Math.max(3, Math.round(base * m * gm)),
-    sets: level === 'Beginner' ? 2 : level === 'Intermediate' ? 3 : level === 'Advanced' ? 3 : 4
-  };
+  const reps = Math.max(3, Math.round(base * levelBase * weekBonus * gm));
+  const setsCount = level === 'Beginner' ? 2 : level === 'Intermediate' ? 3 : level === 'Advanced' ? 3 : 4;
+  return { reps, sets: setsCount };
 }
 
 const monthSchedule = [
@@ -1143,7 +1133,8 @@ function buildWorkoutDay(type, level, prog, gender) {
   return {
     ...t,
     exercises: t.exercises.map(([ex, base, sets, isHold]) => {
-      const r = getReps(Math.round(base * prog), sets, level, gender);
+      const weekNum = Math.round((prog - 1) / 0.1); // recover week from prog
+      const r = getReps(base, sets, level, gender, weekNum);
       return { ...ex, reps: r.reps, sets: r.sets, restSec, isHold: !!isHold };
     })
   };

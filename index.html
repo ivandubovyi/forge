@@ -725,6 +725,7 @@ async function handleLogout() {
 
 // ── LOAD PROFILE ───────────────────────────────────────────
 async function loadUserProfile() {
+  console.log('loadUserProfile called, user:', state.user?.id);
   // Fetch all 3 data sources in parallel — 3x faster than sequential
   const [profileRes, progressRes, planRes] = await Promise.all([
     sb.from('profiles').select('*').eq('id', state.user.id).single(),
@@ -732,6 +733,7 @@ async function loadUserProfile() {
     sb.from('workout_plans').select('*').eq('user_id', state.user.id).order('created_at', { ascending: false }).limit(1).single()
   ]);
 
+  console.log('DB results:', {profile: profileRes.data, profileErr: profileRes.error, plan: planRes.data, planErr: planRes.error});
   // Profile
   if (profileRes.data) {
     state.profile = profileRes.data;
@@ -747,6 +749,7 @@ async function loadUserProfile() {
   }
 
   // Workout plan — if exists, go straight to plan page
+  console.log('Plan check:', planRes.data ? 'HAS PLAN' : 'NO PLAN', planRes.error);
   if (planRes.data) {
     state.age = planRes.data.age;
     state.weight = planRes.data.weight;

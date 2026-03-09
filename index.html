@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Forge</title>
+<title>FORGE — Build Your Body</title>
 <!-- Preconnect for faster DNS -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -617,16 +617,25 @@ async function handleSignup() {
     return;
   }
 
-  // Insert profile row
-  await sb.from('profiles').upsert({
-    id: data.user.id,
-    full_name: name,
-    email,
-    phone,
-    created_at: new Date().toISOString()
-  });
+  // Save profile — retry up to 3 times in case of timing issues
+  let saved = false;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const { error: profileError } = await sb.from('profiles').upsert({
+      id: data.user.id,
+      full_name: name,
+      email,
+      phone,
+      created_at: new Date().toISOString()
+    });
+    if (!profileError) { saved = true; break; }
+    await new Promise(r => setTimeout(r, 500)); // wait 500ms before retry
+  }
 
-  showAuthSuccess('Account created! Check your email to confirm, then sign in.');
+  // Auto sign in immediately after signup (no email confirmation needed)
+  const { error: signInError } = await sb.auth.signInWithPassword({ email, password });
+  if (signInError) {
+    showAuthSuccess('Account created! Please sign in.');
+  }
   btn.disabled = false; btn.textContent = 'Create Account';
 }
 

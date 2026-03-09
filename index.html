@@ -641,36 +641,47 @@ async function handleSignup() {
   const btn = document.getElementById('signupBtn');
   btn.disabled = true; btn.textContent = 'Creating account…';
 
+  // Step 1: Sign up
   const { data, error } = await sb.auth.signUp({
     email, password,
-    options: { data: { full_name: name, phone } }
+    options: {
+      data: { full_name: name, phone },
+      emailRedirectTo: null // don't send confirmation email
+    }
   });
 
   if (error) {
-    showAuthError(error.message);
+    // If email rate limit hit, try signing in — account may already exist
+    if (error.message.includes('rate') || error.message.includes('email')) {
+      showAuthError('Too many signups. Please wait a few minutes and try again, or sign in if you already have an account.');
+    } else {
+      showAuthError(error.message);
+    }
     btn.disabled = false; btn.textContent = 'Create Account';
     return;
   }
 
-  // Save profile — retry up to 3 times in case of timing issues
-  let saved = false;
-  for (let attempt = 0; attempt < 3; attempt++) {
-    const { error: profileError } = await sb.from('profiles').upsert({
-      id: data.user.id,
-      full_name: name,
-      email,
-      phone,
-      created_at: new Date().toISOString()
-    });
-    if (!profileError) { saved = true; break; }
-    await new Promise(r => setTimeout(r, 500)); // wait 500ms before retry
+  // Step 2: Save profile
+  await sb.from('profiles').upsert({
+    id: data.user.id,
+    full_name: name,
+    email,
+    phone,
+    created_at: new Date().toISOString()
+  });
+
+  // Step 3: Sign in immediately
+  const { data: loginData, error: signInError } = await sb.auth.signInWithPassword({ email, password });
+  if (signInError) {
+    // Account created but needs email confirmation
+    showAuthSuccess('Account created! Please check your email to confirm, then sign in.');
+    btn.disabled = false; btn.textContent = 'Create Account';
+    return;
   }
 
-  // Auto sign in immediately after signup (no email confirmation needed)
-  const { error: signInError } = await sb.auth.signInWithPassword({ email, password });
-  if (signInError) {
-    showAuthSuccess('Account created! Please sign in.');
-  }
+  // Step 4: Load profile and go to app
+  state.user = loginData.user;
+  await loadUserProfile();
   btn.disabled = false; btn.textContent = 'Create Account';
 }
 

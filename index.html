@@ -175,9 +175,9 @@
   .ex-row.checked .ex-name-main { text-decoration:line-through; opacity:0.45; }
   .ex-name-main { font-weight:600; font-size:0.92rem; }
   .ex-name-sub { font-size:0.72rem; color:var(--muted); margin-top:2px; }
-  .ex-pill { font-family:'Space Mono',monospace; font-size:0.67rem; padding:3px 9px; border-radius:6px; background:rgba(232,255,71,0.1); color:var(--accent); white-space:nowrap; text-align:center; }
-  .ex-pill.orange { background:rgba(255,107,53,0.1); color:var(--accent2); }
-  .ex-pill.blue { background:rgba(71,200,255,0.1); color:var(--accent3); cursor:pointer; }
+  .ex-pill { font-family:'Space Mono',monospace; font-size:0.78rem; font-weight:700; padding:6px 12px; border-radius:8px; background:rgba(232,255,71,0.15); color:var(--accent); white-space:nowrap; text-align:center; border:1px solid rgba(232,255,71,0.2); }
+  .ex-pill.orange { background:rgba(255,107,53,0.15); color:var(--accent2); border-color:rgba(255,107,53,0.2); }
+  .ex-pill.blue { background:rgba(71,200,255,0.15); color:var(--accent3); border-color:rgba(71,200,255,0.2); }
 
   /* ── COMPLETE WORKOUT BTN ── */
   .complete-btn-wrap { margin-top:16px; display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
@@ -241,14 +241,7 @@
   .water-cup:hover { transform:scale(1.2); }
   .water-label { font-family:'Space Mono',monospace; font-size:0.72rem; color:var(--muted); }
 
-  /* ── TIMER ── */
-  .rest-timer { position:fixed; bottom:24px; right:24px; background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:14px 18px; display:none; align-items:center; gap:12px; box-shadow:0 8px 32px rgba(0,0,0,0.6); z-index:200; animation:slideIn 0.3s ease; }
-  .rest-timer.visible { display:flex; }
-  @keyframes slideIn { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
-  .timer-display { font-family:'Space Mono',monospace; font-size:1.7rem; font-weight:700; color:var(--accent); min-width:52px; }
-  .timer-label { font-size:0.68rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.1em; }
-  .timer-close { background:none; border:none; color:var(--muted); cursor:pointer; font-size:0.95rem; padding:4px; transition:color 0.2s; }
-  .timer-close:hover { color:var(--text); }
+
 
   /* ── TOAST ── */
   .toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(80px); background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:12px 20px; border-radius:10px; font-size:0.85rem; z-index:500; transition:transform 0.3s ease; box-shadow:0 8px 24px rgba(0,0,0,0.5); white-space:nowrap; }
@@ -270,8 +263,10 @@
     .hero { padding:36px 18px 28px; }
     .section { padding:0 18px 56px; }
     .calendar-grid { grid-template-columns:repeat(4,1fr); }
-    .ex-row { grid-template-columns:28px 1fr; gap:7px; }
-    .ex-row>*:nth-child(3),.ex-row>*:nth-child(4),.ex-row>*:nth-child(5) { display:none; }
+    .ex-row { grid-template-columns:28px 1fr; gap:7px; flex-wrap:wrap; }
+    .ex-row>*:nth-child(3),.ex-row>*:nth-child(4) { display:flex !important; font-size:0.72rem; padding:5px 9px; }
+    .ex-row>*:nth-child(5) { display:none; }
+    .ex-pills-mobile { display:flex; gap:6px; flex-wrap:wrap; margin-top:4px; }
   }
   @media(max-width:480px) { .calendar-grid { grid-template-columns:repeat(3,1fr); } }
 
@@ -282,16 +277,6 @@
 
 <!-- Toast -->
 <div class="toast" id="toast"></div>
-
-<!-- REST TIMER -->
-<div class="rest-timer" id="restTimer">
-  <div>
-    <div class="timer-label">Rest Timer</div>
-    <div class="timer-display" id="timerDisplay">1:30</div>
-  </div>
-  <button class="btn btn-primary btn-sm" onclick="startTimer()">Start</button>
-  <button class="timer-close" onclick="closeTimer()">✕</button>
-</div>
 
 <!-- ==================== AUTH SCREEN ==================== -->
 <div id="authScreen">
@@ -404,6 +389,14 @@
     <div class="section">
       <div class="section-label">Step 01 — About You</div>
       <div class="form-grid">
+        <div class="field">
+          <label>Gender</label>
+          <select id="userGender">
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+            <option value="other">Other / Prefer not to say</option>
+          </select>
+        </div>
         <div class="field"><label>Age</label><div class="unit-row"><input type="number" id="userAge" placeholder="25" min="10" max="99"><span class="unit-badge">yrs</span></div></div>
         <div class="field"><label>Weight</label><div class="unit-row"><input type="number" id="userWeight" placeholder="70" min="30" max="300"><span class="unit-badge">kg</span></div></div>
         <div class="field"><label>Height</label><div class="unit-row"><input type="number" id="userHeight" placeholder="175" min="100" max="250"><span class="unit-badge">cm</span></div></div>
@@ -519,13 +512,28 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // ============================================================
 
 const { createClient } = supabase;
-const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: true, autoRefreshToken: true } });
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    storageKey: 'forge-auth',
+    storage: window.localStorage,
+    detectSessionInUrl: true,
+    flowType: 'implicit'
+  }
+});
+
+// Keep session alive — refresh token before it expires
+setInterval(async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) sb.auth.refreshSession();
+}, 4 * 60 * 1000); // every 4 minutes
 
 // ── STATE ──────────────────────────────────────────────────
 const state = {
   user: null,
   profile: null,
-  name: '', age: 0, weight: 0, height: 0, goal: '',
+  name: '', age: 0, weight: 0, height: 0, goal: '', gender: 'male',
   reps: { pushup:0, situp:0, squat:0, burpee:0, lunge:0, plank:0 },
   level: '', levelScore: 0,
   currentWeek: 0,
@@ -804,6 +812,7 @@ async function loadUserProfile() {
     state.weight = planRes.data.weight;
     state.height = planRes.data.height;
     state.goal = planRes.data.goal;
+    state.gender = planRes.data.gender || 'male';
     state.reps = planRes.data.reps;
     state.level = planRes.data.level;
     state.plan = buildFullPlan(state.level);
@@ -863,6 +872,7 @@ async function saveWorkoutPlan() {
     weight: state.weight,
     height: state.height,
     goal: state.goal,
+    gender: state.gender,
     reps: state.reps,
     level: state.level,
     created_at: new Date().toISOString()
@@ -881,6 +891,7 @@ function goTo(page) {
 
 // ── ANALYSIS ───────────────────────────────────────────────
 function analyzeUser() {
+  state.gender = document.getElementById('userGender').value || 'male';
   state.age = parseInt(document.getElementById('userAge').value) || 25;
   state.weight = parseFloat(document.getElementById('userWeight').value) || 70;
   state.height = parseFloat(document.getElementById('userHeight').value) || 175;
@@ -1000,10 +1011,13 @@ const exerciseDB = {
   ]
 };
 
-function getReps(base, sets, level) {
+function getReps(base, sets, level, gender) {
   const m = { Beginner:0.6, Intermediate:1.0, Advanced:1.4, Master:1.8 }[level];
+  // Females: slightly fewer reps on push/upper body, more on legs/core (research-based)
+  // Other/prefer not to say: neutral (same as male baseline)
+  const gm = gender === 'female' ? 0.85 : 1.0;
   return {
-    reps: Math.round(base * m),
+    reps: Math.round(base * m * gm),
     sets: level === 'Beginner' ? Math.max(2, sets-1) : level === 'Master' ? sets+1 : sets
   };
 }
@@ -1017,14 +1031,16 @@ const monthSchedule = [
 ];
 
 function buildFullPlan(level) {
+  const gender = state.gender || 'male';
   return monthSchedule.map((type, i) => {
     const weekNum = Math.floor(i / 7);
     const prog = 1 + weekNum * 0.1;
-    return { day: i+1, type, ...buildWorkoutDay(type, level, prog) };
+    return { day: i+1, type, ...buildWorkoutDay(type, level, prog, gender) };
   });
 }
 
-function buildWorkoutDay(type, level, prog) {
+function buildWorkoutDay(type, level, prog, gender) {
+  gender = gender || state.gender || 'male';
   const restSec = level === 'Master' ? 45 : level === 'Advanced' ? 50 : 60;
   const dur = { Beginner:'30–35 min', Intermediate:'40–45 min', Advanced:'50–55 min', Master:'60 min' }[level];
 
@@ -1046,7 +1062,7 @@ function buildWorkoutDay(type, level, prog) {
   return {
     ...t,
     exercises: t.exercises.map(([ex, base, sets, isHold]) => {
-      const r = getReps(Math.round(base * prog), sets, level);
+      const r = getReps(Math.round(base * prog), sets, level, gender);
       return { ...ex, reps: r.reps, sets: r.sets, restSec, isHold: !!isHold };
     })
   };
@@ -1150,7 +1166,6 @@ function renderWorkoutPanel(day) {
       <div><div class="ex-name-main">${ex.name}</div><div class="ex-name-sub">${ex.tip} · ${ex.target}</div></div>
       <div class="ex-pill">${ex.sets} sets</div>
       <div class="ex-pill orange">${repLabel}</div>
-      <div class="ex-pill blue" onclick="event.stopPropagation();openTimer(${ex.restSec})">${ex.restSec}s rest ⏱</div>
     </div>`;
   }).join('');
 
@@ -1195,29 +1210,7 @@ async function toggleWater(idx) {
   await saveProgress();
 }
 
-// ── TIMER ──────────────────────────────────────────────────
-let timerInterval = null, timerSeconds = 90, timerRunning = false;
-function openTimer(sec) {
-  timerSeconds = sec; timerRunning = false;
-  clearInterval(timerInterval);
-  document.getElementById('restTimer').classList.add('visible');
-  document.querySelector('.rest-timer .btn-primary').textContent = 'Start';
-  updateTimerDisplay();
-}
-function closeTimer() { clearInterval(timerInterval); document.getElementById('restTimer').classList.remove('visible'); }
-function startTimer() {
-  if (timerRunning) { clearInterval(timerInterval); timerRunning = false; document.querySelector('.rest-timer .btn-primary').textContent = 'Start'; return; }
-  timerRunning = true; document.querySelector('.rest-timer .btn-primary').textContent = 'Stop';
-  timerInterval = setInterval(() => {
-    timerSeconds--;
-    updateTimerDisplay();
-    if (timerSeconds <= 0) { clearInterval(timerInterval); timerRunning = false; document.querySelector('.rest-timer .btn-primary').textContent = 'Start'; document.getElementById('timerDisplay').textContent = 'GO!'; setTimeout(closeTimer, 1200); }
-  }, 1000);
-}
-function updateTimerDisplay() {
-  const m = Math.floor(timerSeconds/60), s = timerSeconds%60;
-  document.getElementById('timerDisplay').textContent = `${m}:${s.toString().padStart(2,'0')}`;
-}
+
 
 // ── TOAST ──────────────────────────────────────────────────
 let toastTimer;

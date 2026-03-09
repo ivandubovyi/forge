@@ -726,20 +726,30 @@ async function handleLogout() {
 // ── LOAD PROFILE ───────────────────────────────────────────
 async function loadUserProfile() {
   console.log('loadUserProfile called, user:', state.user?.id);
-  // Fetch all 3 data sources in parallel — 3x faster than sequential
+  // Fetch with timeout — if DB takes more than 6s, continue anyway
+  const withTimeout = (promise, ms) => Promise.race([
+    promise,
+    new Promise(resolve => setTimeout(() => resolve({ data: null, error: 'timeout' }), ms))
+  ]);
+
   const [profileRes, progressRes, planRes] = await Promise.all([
-    sb.from('profiles').select('*').eq('id', state.user.id).single(),
-    sb.from('progress').select('*').eq('user_id', state.user.id).single(),
-    sb.from('workout_plans').select('*').eq('user_id', state.user.id).order('created_at', { ascending: false }).limit(1).single()
+    withTimeout(sb.from('profiles').select('*').eq('id', state.user.id).single(), 6000),
+    withTimeout(sb.from('progress').select('*').eq('user_id', state.user.id).single(), 6000),
+    withTimeout(sb.from('workout_plans').select('*').eq('user_id', state.user.id).order('created_at', { ascending: false }).limit(1).single(), 6000)
   ]);
 
   console.log('DB results:', {profile: profileRes.data, profileErr: profileRes.error, plan: planRes.data, planErr: planRes.error});
-  // Profile
+
+  // Profile — use auth metadata as fallback if DB is slow
   if (profileRes.data) {
     state.profile = profileRes.data;
     state.name = profileRes.data.full_name || 'Athlete';
-    updateUserPill();
+  } else {
+    // Fallback to auth metadata
+    const meta = state.user?.user_metadata;
+    state.name = meta?.full_name || state.user?.email?.split('@')[0] || 'Athlete';
   }
+  updateUserPill();
 
   // Progress
   if (progressRes.data) {

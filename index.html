@@ -497,8 +497,7 @@
 <script>
 // ============================================================
 // CONFIG — Replace with your actual Supabase project values
-// ============================================================
-const SUPABASE_URL = 'https://uolgsfkqlaieyxolaxvl.supabase.co';
+// ============================================================const SUPABASE_URL = 'https://uolgsfkqlaieyxolaxvl.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVvbGdzZmtxbGFpZXl4b2xheHZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5OTQ5MjYsImV4cCI6MjA4ODU3MDkyNn0.U_d8-NN79bwKvpQzIByQ2xhkpwd1wJSm3yVStb_u6aI';
 // ============================================================
 
@@ -522,10 +521,45 @@ const state = {
 
 // ── INIT ───────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', async () => {
-  // Show auth screen immediately — no loading screen
-  showAuth();
-  // Check for existing session in background
+  // Try to load from local cache first — instant, zero network needed
+  const cachedProfile = localStorage.getItem('forge_profile');
   const hasLocalSession = Object.keys(localStorage).some(k => k.startsWith('sb-'));
+
+  if (hasLocalSession && cachedProfile) {
+    // Restore state from cache and show app immediately
+    try {
+      const p = JSON.parse(cachedProfile);
+      state.name = p.name || 'Athlete';
+      state.age = p.age; state.weight = p.weight; state.height = p.height;
+      state.goal = p.goal; state.reps = p.reps; state.level = p.level;
+      state.completedDays = p.completedDays || {};
+      state.checkedExercises = p.checkedExercises || {};
+      state.waterCups = p.waterCups || 0;
+      state.plan = buildFullPlan(state.level);
+      showApp();
+      updateUserPill();
+      goTo(3);
+      renderPlanPage();
+      // Verify session is still valid in background, refresh data silently
+      sb.auth.getSession().then(({ data: { session } }) => {
+        if (session) {
+          state.user = session.user;
+          // Silently refresh from DB in background
+          loadUserProfile().catch(() => {});
+        } else {
+          // Session expired — go back to login
+          localStorage.removeItem('forge_profile');
+          showAuth();
+        }
+      });
+      return;
+    } catch(e) {}
+  }
+
+  // No cache — show login screen
+  showAuth();
+
+  // Still check for valid session in background
   if (hasLocalSession) {
     const { data: { session } } = await sb.auth.getSession();
     if (session) {
@@ -646,16 +680,28 @@ async function handleLogin() {
   if (!email || !password) return showAuthError('Please enter email and password.');
 
   const btn = document.getElementById('loginBtn');
-  btn.disabled = true; btn.textContent = 'Signing in…';
+  btn.disabled = true;
+
+  // Show countdown so user knows it's working (Supabase free tier wakes up slowly)
+  let secs = 0;
+  const ticker = setInterval(() => {
+    secs++;
+    if (secs < 8) btn.textContent = `Signing in… (${secs}s)`;
+    else btn.textContent = `Almost there… hang tight`;
+  }, 1000);
 
   const { data, error } = await sb.auth.signInWithPassword({ email, password });
+  clearInterval(ticker);
+
   if (error) {
-    showAuthError(error.message);
+    showAuthError(error.message === 'Invalid login credentials'
+      ? 'Wrong email or password. Try again.'
+      : error.message);
     btn.disabled = false; btn.textContent = 'Sign In';
     return;
   }
-  // onAuthStateChange handles the rest
-  btn.disabled = false; btn.textContent = 'Sign In';
+  btn.textContent = '✓ Signed in!';
+  // onAuthStateChange handles navigation
 }
 
 // ── RESET PASSWORD ─────────────────────────────────────────
@@ -705,11 +751,21 @@ async function loadUserProfile() {
     state.reps = planRes.data.reps;
     state.level = planRes.data.level;
     state.plan = buildFullPlan(state.level);
+    // Cache everything locally so next visit is instant
+    try {
+      localStorage.setItem('forge_profile', JSON.stringify({
+        name: state.name,
+        age: state.age, weight: state.weight, height: state.height,
+        goal: state.goal, reps: state.reps, level: state.level,
+        completedDays: state.completedDays,
+        checkedExercises: state.checkedExercises,
+        waterCups: state.waterCups
+      }));
+    } catch(e) {}
     showApp();
     goTo(3);
     renderPlanPage();
   } else {
-    // No plan yet — go to intro to set up
     showApp();
     goTo(0);
   }
@@ -723,14 +779,24 @@ function updateUserPill() {
 
 // ── SAVE PROGRESS ──────────────────────────────────────────
 async function saveProgress() {
+  // Always update local cache immediately — instant feedback
+  try {
+    const cached = JSON.parse(localStorage.getItem('forge_profile') || '{}');
+    cached.completedDays = state.completedDays;
+    cached.checkedExercises = state.checkedExercises;
+    cached.waterCups = state.waterCups;
+    localStorage.setItem('forge_profile', JSON.stringify(cached));
+  } catch(e) {}
+
+  // Save to DB in background — don't await so UI stays fast
   if (!state.user) return;
-  await sb.from('progress').upsert({
+  sb.from('progress').upsert({
     user_id: state.user.id,
     completed_days: state.completedDays,
     checked_exercises: state.checkedExercises,
     water_cups: state.waterCups,
     updated_at: new Date().toISOString()
-  }, { onConflict: 'user_id' });
+  }, { onConflict: 'user_id' }).catch(() => {});
 }
 
 async function saveWorkoutPlan() {

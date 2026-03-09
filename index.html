@@ -398,8 +398,38 @@
           </select>
         </div>
         <div class="field"><label>Age</label><div class="unit-row"><input type="number" id="userAge" placeholder="25" min="10" max="99"><span class="unit-badge">yrs</span></div></div>
-        <div class="field"><label>Weight</label><div class="unit-row"><input type="number" id="userWeight" placeholder="70" min="30" max="300"><span class="unit-badge">kg</span></div></div>
-        <div class="field"><label>Height</label><div class="unit-row"><input type="number" id="userHeight" placeholder="175" min="100" max="250"><span class="unit-badge">cm</span></div></div>
+        <div class="field">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+            <label style="margin:0">Weight</label>
+            <div style="display:flex;gap:0;background:var(--surface2);border:1px solid var(--border);border-radius:6px;overflow:hidden;">
+              <button type="button" id="weightUnitKg" onclick="setWeightUnit('kg')" style="padding:4px 10px;font-size:0.72rem;font-weight:700;border:none;background:var(--accent);color:#0a0a0b;cursor:pointer;">kg</button>
+              <button type="button" id="weightUnitLbs" onclick="setWeightUnit('lbs')" style="padding:4px 10px;font-size:0.72rem;font-weight:700;border:none;background:none;color:var(--muted);cursor:pointer;">lbs</button>
+            </div>
+          </div>
+          <div class="unit-row">
+            <input type="number" id="userWeight" placeholder="70" min="1" max="700">
+            <span class="unit-badge" id="weightUnitBadge">kg</span>
+          </div>
+        </div>
+        <div class="field">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+            <label style="margin:0">Height</label>
+            <div style="display:flex;gap:0;background:var(--surface2);border:1px solid var(--border);border-radius:6px;overflow:hidden;">
+              <button type="button" id="heightUnitCm" onclick="setHeightUnit('cm')" style="padding:4px 10px;font-size:0.72rem;font-weight:700;border:none;background:var(--accent);color:#0a0a0b;cursor:pointer;">cm</button>
+              <button type="button" id="heightUnitFt" onclick="setHeightUnit('ft')" style="padding:4px 10px;font-size:0.72rem;font-weight:700;border:none;background:none;color:var(--muted);cursor:pointer;">ft</button>
+            </div>
+          </div>
+          <div id="heightCmRow" class="unit-row">
+            <input type="number" id="userHeightCm" placeholder="175" min="50" max="280">
+            <span class="unit-badge">cm</span>
+          </div>
+          <div id="heightFtRow" class="unit-row" style="display:none;">
+            <input type="number" id="userHeightFt" placeholder="5" min="1" max="8" style="max-width:80px;">
+            <span class="unit-badge">ft</span>
+            <input type="number" id="userHeightIn" placeholder="9" min="0" max="11" style="max-width:80px;">
+            <span class="unit-badge">in</span>
+          </div>
+        </div>
         <div class="field">
           <label>Goal</label>
           <select id="userGoal">
@@ -523,11 +553,18 @@ const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   }
 });
 
-// Keep session alive — refresh token before it expires
-setInterval(async () => {
-  const { data: { session } } = await sb.auth.getSession();
-  if (session) sb.auth.refreshSession();
-}, 4 * 60 * 1000); // every 4 minutes
+// Keep session alive — refresh when tab becomes visible again
+document.addEventListener('visibilitychange', async () => {
+  if (document.visibilityState === 'visible') {
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) {
+      // Session still valid — silently refresh token
+      await sb.auth.refreshSession();
+    }
+    // If no session, do NOT redirect — let user stay on whatever page they're on
+    // Only redirect if they explicitly sign out
+  }
+});
 
 // ── STATE ──────────────────────────────────────────────────
 const state = {
@@ -595,14 +632,17 @@ window.addEventListener('DOMContentLoaded', async () => {
 });
 
 sb.auth.onAuthStateChange(async (event, session) => {
-  if (event === 'SIGNED_IN' && session) {
+  if (event === 'SIGNED_IN' && session && !state.user) {
+    // Only handle SIGNED_IN if we don't already have a user loaded
     state.user = session.user;
     await loadUserProfile();
   } else if (event === 'SIGNED_OUT') {
     state.user = null;
     state.profile = null;
+    localStorage.removeItem('forge_profile');
     showAuth();
   }
+  // Ignore TOKEN_REFRESHED and other events — don't disrupt the current page
 });
 
 function showAuth() {
@@ -890,12 +930,53 @@ function goTo(page) {
 }
 
 // ── ANALYSIS ───────────────────────────────────────────────
+// ── UNIT TOGGLES ───────────────────────────────────────────
+let currentWeightUnit = 'kg';
+let currentHeightUnit = 'cm';
+
+function setWeightUnit(unit) {
+  currentWeightUnit = unit;
+  document.getElementById('weightUnitBadge').textContent = unit;
+  document.getElementById('weightUnitKg').style.background = unit === 'kg' ? 'var(--accent)' : 'none';
+  document.getElementById('weightUnitKg').style.color = unit === 'kg' ? '#0a0a0b' : 'var(--muted)';
+  document.getElementById('weightUnitLbs').style.background = unit === 'lbs' ? 'var(--accent)' : 'none';
+  document.getElementById('weightUnitLbs').style.color = unit === 'lbs' ? '#0a0a0b' : 'var(--muted)';
+  // Convert existing value
+  const input = document.getElementById('userWeight');
+  if (input.value) {
+    const v = parseFloat(input.value);
+    input.value = unit === 'lbs' ? Math.round(v * 2.20462) : Math.round(v / 2.20462 * 10) / 10;
+  }
+  input.placeholder = unit === 'lbs' ? '154' : '70';
+}
+
+function setHeightUnit(unit) {
+  currentHeightUnit = unit;
+  document.getElementById('heightCmRow').style.display = unit === 'cm' ? 'flex' : 'none';
+  document.getElementById('heightFtRow').style.display = unit === 'ft' ? 'flex' : 'none';
+  document.getElementById('heightUnitCm').style.background = unit === 'cm' ? 'var(--accent)' : 'none';
+  document.getElementById('heightUnitCm').style.color = unit === 'cm' ? '#0a0a0b' : 'var(--muted)';
+  document.getElementById('heightUnitFt').style.background = unit === 'ft' ? 'var(--accent)' : 'none';
+  document.getElementById('heightUnitFt').style.color = unit === 'ft' ? '#0a0a0b' : 'var(--muted)';
+}
+
 function analyzeUser() {
   state.gender = document.getElementById('userGender').value || 'male';
   state.age = parseInt(document.getElementById('userAge').value) || 25;
-  state.weight = parseFloat(document.getElementById('userWeight').value) || 70;
-  state.height = parseFloat(document.getElementById('userHeight').value) || 175;
   state.goal = document.getElementById('userGoal').value;
+
+  // Weight — convert lbs to kg if needed (store always in kg internally)
+  const wVal = parseFloat(document.getElementById('userWeight').value) || 70;
+  state.weight = currentWeightUnit === 'lbs' ? Math.round(wVal * 0.453592 * 10) / 10 : wVal;
+
+  // Height — convert ft+in to cm if needed (store always in cm internally)
+  if (currentHeightUnit === 'ft') {
+    const ft = parseInt(document.getElementById('userHeightFt').value) || 5;
+    const inch = parseInt(document.getElementById('userHeightIn').value) || 9;
+    state.height = Math.round((ft * 30.48) + (inch * 2.54));
+  } else {
+    state.height = parseFloat(document.getElementById('userHeightCm').value) || 175;
+  }
   ['pushup','situp','squat','burpee','lunge','plank'].forEach(k => {
     state.reps[k] = parseInt(document.getElementById('reps-' + k).value) || 0;
   });
@@ -1012,13 +1093,12 @@ const exerciseDB = {
 };
 
 function getReps(base, sets, level, gender) {
-  const m = { Beginner:0.6, Intermediate:1.0, Advanced:1.4, Master:1.8 }[level];
-  // Females: slightly fewer reps on push/upper body, more on legs/core (research-based)
-  // Other/prefer not to say: neutral (same as male baseline)
+  // Lower multipliers — start easy, build slowly
+  const m = { Beginner:0.35, Intermediate:0.6, Advanced:0.9, Master:1.2 }[level];
   const gm = gender === 'female' ? 0.85 : 1.0;
   return {
-    reps: Math.round(base * m * gm),
-    sets: level === 'Beginner' ? Math.max(2, sets-1) : level === 'Master' ? sets+1 : sets
+    reps: Math.max(3, Math.round(base * m * gm)),
+    sets: level === 'Beginner' ? 2 : level === 'Intermediate' ? 3 : level === 'Advanced' ? 3 : 4
   };
 }
 
@@ -1034,7 +1114,8 @@ function buildFullPlan(level) {
   const gender = state.gender || 'male';
   return monthSchedule.map((type, i) => {
     const weekNum = Math.floor(i / 7);
-    const prog = 1 + weekNum * 0.1;
+    // Slower progression: +5% per week instead of +10%
+    const prog = 1 + weekNum * 0.05;
     return { day: i+1, type, ...buildWorkoutDay(type, level, prog, gender) };
   });
 }

@@ -586,7 +586,7 @@ const state = {
 (function() {
   try {
     const p = JSON.parse(localStorage.getItem('forge_profile') || '{}');
-    if (p.level && p.name) {
+    if (p.name) {
       // Tag so DOMContentLoaded knows to skip login
       window._forgeHasCache = p;
     }
@@ -597,7 +597,6 @@ window.addEventListener('DOMContentLoaded', async () => {
   const p = window._forgeHasCache;
 
   if (p) {
-    // Restore from cache and jump straight to app — zero delay
     state.name = p.name || 'Athlete';
     state.age = p.age; state.weight = p.weight; state.height = p.height;
     state.goal = p.goal; state.reps = p.reps; state.level = p.level;
@@ -605,12 +604,22 @@ window.addEventListener('DOMContentLoaded', async () => {
     state.completedDays = p.completedDays || {};
     state.checkedExercises = p.checkedExercises || {};
     state.waterCups = p.waterCups || 0;
-    state.plan = buildFullPlan(state.level);
-    showApp();
-    updateUserPill();
-    goTo(3);
-    renderPlanPage();
-    // Background session refresh — never blocks UI, never kicks user out
+
+    if (p.level) {
+      // Has full plan — go straight to workout page
+      state.plan = buildFullPlan(state.level);
+      showApp();
+      updateUserPill();
+      goTo(3);
+      renderPlanPage();
+    } else {
+      // Has account but no plan yet — go to intro
+      showApp();
+      updateUserPill();
+      goTo(0);
+    }
+
+    // Background sync — never kicks user out
     sb.auth.getSession().then(({ data: { session } }) => {
       if (session) { state.user = session.user; loadUserProfile().catch(()=>{}); }
     }).catch(()=>{});
@@ -852,6 +861,7 @@ async function loadUserProfile() {
         name: state.name,
         age: state.age, weight: state.weight, height: state.height,
         goal: state.goal, reps: state.reps, level: state.level,
+        gender: state.gender || 'male',
         completedDays: state.completedDays,
         checkedExercises: state.checkedExercises,
         waterCups: state.waterCups
@@ -907,6 +917,17 @@ async function saveWorkoutPlan() {
     level: state.level,
     created_at: new Date().toISOString()
   }, { onConflict: 'user_id' });
+
+  // Save to local cache immediately so next visit is instant
+  try {
+    localStorage.setItem('forge_profile', JSON.stringify({
+      name: state.name,
+      age: state.age, weight: state.weight, height: state.height,
+      goal: state.goal, reps: state.reps, level: state.level,
+      gender: state.gender || 'male',
+      completedDays: {}, checkedExercises: {}, waterCups: 0
+    }));
+  } catch(e) {}
 }
 
 // ── NAVIGATION ─────────────────────────────────────────────

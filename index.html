@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Forge</title>
+<title>FORGE — Build Your Body</title>
 <!-- Preconnect for faster DNS -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -497,9 +497,9 @@
 <script>
 // ============================================================
 // CONFIG — Replace with your actual Supabase project values
-// ============================================================const SUPABASE_URL = 'https://uolgsfkqlaieyxolaxvl.supabase.co';
-const SUPABASE_URL = 'https://uolgsfkqlaieyxolaxvl.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVvbGdzZmtxbGFpZXl4b2xheHZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5OTQ5MjYsImV4cCI6MjA4ODU3MDkyNn0.U_d8-NN79bwKvpQzIByQ2xhkpwd1wJSm3yVStb_u6aI';
+// ============================================================
+const SUPABASE_URL = 'https://YOUR_PROJECT_ID.supabase.co';
+const SUPABASE_ANON_KEY = 'YOUR_PUBLISHABLE_KEY'; // paste your sb_publishable_... key here
 // ============================================================
 
 const { createClient } = supabase;
@@ -701,8 +701,11 @@ async function handleLogin() {
     btn.disabled = false; btn.textContent = 'Sign In';
     return;
   }
+
   btn.textContent = '✓ Signed in!';
-  // onAuthStateChange handles navigation
+  // Don't wait for onAuthStateChange — manually load profile right here
+  state.user = data.user;
+  await loadUserProfile();
 }
 
 // ── RESET PASSWORD ─────────────────────────────────────────

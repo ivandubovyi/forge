@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FORGE — Build Your Body</title>
+<title>FORGE</title>
 <!-- Preconnect for faster DNS -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -47,6 +47,17 @@
   .step-dot.done { background:var(--green); }
 
   /* ── AUTH SCREEN ── */
+  /* ── LANDING ── */
+  #landingScreen { display:flex; flex-direction:column; min-height:100vh; }
+  #landingScreen header { display:flex; align-items:center; justify-content:space-between; padding:20px 48px; border-bottom:1px solid var(--border); position:sticky; top:0; background:rgba(10,10,11,0.92); backdrop-filter:blur(12px); z-index:100; }
+  .landing-nav-btns { display:flex; gap:10px; align-items:center; }
+  .btn-nav-signin { background:none; border:1px solid var(--border); color:var(--text); padding:8px 20px; border-radius:8px; font-size:0.85rem; font-weight:600; cursor:pointer; transition:all 0.2s; }
+  .btn-nav-signin:hover { border-color:var(--text); }
+  .btn-nav-signup { background:var(--accent); color:#0a0a0b; padding:8px 20px; border-radius:8px; font-size:0.85rem; font-weight:600; cursor:pointer; border:none; transition:all 0.2s; }
+  .btn-nav-signup:hover { background:#f5ff6e; }
+  #landingScreen .hero { padding: 120px 48px 80px; max-width:700px; }
+  @media(max-width:600px) { #landingScreen header { padding:14px 18px; } #landingScreen .hero { padding:80px 18px 60px; } .landing-nav-btns { gap:6px; } .btn-nav-signin,.btn-nav-signup { padding:7px 14px; font-size:0.78rem; } }
+
   #authScreen {
     min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px;
     background: radial-gradient(ellipse at 30% 50%, rgba(232,255,71,0.05) 0%, transparent 60%),
@@ -279,7 +290,26 @@
 <div class="toast" id="toast"></div>
 
 <!-- ==================== AUTH SCREEN ==================== -->
-<div id="authScreen">
+<!-- ==================== LANDING SCREEN ==================== -->
+<div id="landingScreen">
+  <header>
+    <div class="logo">FORGE<span>.</span></div>
+    <div class="landing-nav-btns">
+      <button class="btn-nav-signin" onclick="showAuthScreen('login')">Sign In</button>
+      <button class="btn-nav-signup" onclick="showAuthScreen('signup')">Get Started</button>
+    </div>
+  </header>
+  <div class="hero">
+    <div class="hero-tag">No gym. No excuses. No equipment.</div>
+    <h1>BUILD<br><span class="line2">YOUR BODY</span></h1>
+    <p>Answer a few quick questions and we'll build your personalized 30-day home workout plan — saved to your account forever.</p>
+    <br><br>
+    <button class="btn btn-primary" onclick="showAuthScreen('signup')">Get Started →</button>
+  </div>
+</div>
+
+<!-- ==================== AUTH SCREEN ==================== -->
+<div id="authScreen" style="display:none;">
   <div class="auth-box">
     <div class="auth-logo">FORGE.</div>
     <div class="auth-tagline">No gym. No excuses. No equipment.</div>
@@ -644,12 +674,25 @@ sb.auth.onAuthStateChange(async (event, session) => {
   // Ignore TOKEN_REFRESHED and other events — don't disrupt the current page
 });
 
-function showAuth() {
-  document.getElementById('authScreen').style.display = 'flex';
+function showLanding() {
+  document.getElementById('landingScreen').style.display = 'flex';
+  document.getElementById('authScreen').style.display = 'none';
   document.getElementById('appScreen').style.display = 'none';
 }
 
+function showAuthScreen(tab) {
+  document.getElementById('landingScreen').style.display = 'none';
+  document.getElementById('authScreen').style.display = 'flex';
+  document.getElementById('appScreen').style.display = 'none';
+  if (tab) switchTab(tab);
+}
+
+function showAuth() {
+  showLanding();
+}
+
 function showApp() {
+  document.getElementById('landingScreen').style.display = 'none';
   document.getElementById('authScreen').style.display = 'none';
   document.getElementById('appScreen').style.display = 'block';
 }

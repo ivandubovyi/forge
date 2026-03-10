@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FORGE</title>
+<title>FORGE — Build Your Body</title>
 <!-- Preconnect for faster DNS -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -612,51 +612,40 @@ const state = {
 };
 
 // ── INIT ───────────────────────────────────────────────────
-// Run this BEFORE DOMContentLoaded — absolute earliest possible moment
-(function() {
+window.addEventListener('DOMContentLoaded', () => {
+  // Synchronous cache check — runs instantly, zero network
   try {
-    const p = JSON.parse(localStorage.getItem('forge_profile') || '{}');
-    if (p.name) {
-      // Tag so DOMContentLoaded knows to skip login
-      window._forgeHasCache = p;
+    const p = JSON.parse(localStorage.getItem('forge_profile') || 'null');
+    if (p && p.name) {
+      state.name = p.name || 'Athlete';
+      state.age = p.age; state.weight = p.weight; state.height = p.height;
+      state.goal = p.goal; state.reps = p.reps || {}; state.level = p.level || '';
+      state.gender = p.gender || 'male';
+      state.completedDays = p.completedDays || {};
+      state.checkedExercises = p.checkedExercises || {};
+      state.waterCups = p.waterCups || 0;
+
+      if (p.level) {
+        state.plan = buildFullPlan(state.level);
+        showApp();
+        updateUserPill();
+        goTo(3);
+        renderPlanPage();
+      } else {
+        showApp();
+        updateUserPill();
+        goTo(0);
+      }
+
+      // Background session check — never blocks, never kicks out
+      sb.auth.getSession().then(({ data: { session } }) => {
+        if (session) { state.user = session.user; loadUserProfile().catch(()=>{}); }
+      }).catch(()=>{});
+      return;
     }
   } catch(e) {}
-})();
 
-window.addEventListener('DOMContentLoaded', async () => {
-  const p = window._forgeHasCache;
-
-  if (p) {
-    state.name = p.name || 'Athlete';
-    state.age = p.age; state.weight = p.weight; state.height = p.height;
-    state.goal = p.goal; state.reps = p.reps; state.level = p.level;
-    state.gender = p.gender || 'male';
-    state.completedDays = p.completedDays || {};
-    state.checkedExercises = p.checkedExercises || {};
-    state.waterCups = p.waterCups || 0;
-
-    if (p.level) {
-      // Has full plan — go straight to workout page
-      state.plan = buildFullPlan(state.level);
-      showApp();
-      updateUserPill();
-      goTo(3);
-      renderPlanPage();
-    } else {
-      // Has account but no plan yet — go to intro
-      showApp();
-      updateUserPill();
-      goTo(0);
-    }
-
-    // Background sync — never kicks user out
-    sb.auth.getSession().then(({ data: { session } }) => {
-      if (session) { state.user = session.user; loadUserProfile().catch(()=>{}); }
-    }).catch(()=>{});
-    return;
-  }
-
-  // No cache — show login immediately
+  // No cache — show landing
   showAuth();
 });
 
@@ -832,8 +821,21 @@ async function handleLogin() {
   }
 
   btn.textContent = '✓ Signed in!';
-  // Don't wait for onAuthStateChange — manually load profile right here
   state.user = data.user;
+
+  // Save minimal cache NOW so next visit is instant, even before DB loads
+  try {
+    const existing = JSON.parse(localStorage.getItem('forge_profile') || '{}');
+    const meta = data.user.user_metadata || {};
+    if (!existing.name) {
+      localStorage.setItem('forge_profile', JSON.stringify({
+        name: meta.full_name || data.user.email.split('@')[0] || 'Athlete',
+        age: 0, weight: 0, height: 0, goal: '', reps: {}, level: '',
+        gender: 'male', completedDays: {}, checkedExercises: {}, waterCups: 0
+      }));
+    }
+  } catch(e) {}
+
   await loadUserProfile();
 }
 

@@ -606,6 +606,7 @@ const state = {
   currentWeek: 0,
   selectedDay: 0,
   waterCups: 0,
+  waterDate: '',  // tracks which day the water count is for
   completedDays: {},   // { "1": true, "5": true, ... }
   checkedExercises: {}, // { "dayIdx-exIdx": true }
   plan: []
@@ -623,7 +624,8 @@ window.addEventListener('DOMContentLoaded', () => {
       state.gender = p.gender || 'male';
       state.completedDays = p.completedDays || {};
       state.checkedExercises = p.checkedExercises || {};
-      state.waterCups = p.waterCups || 0;
+      state.waterDate = p.waterDate || '';
+      state.waterCups = p.waterDate === getTodayStr() ? (p.waterCups || 0) : 0;
 
       if (p.level) {
         state.plan = buildFullPlan(state.level);
@@ -919,7 +921,8 @@ async function _syncFromDB(showAfter = false) {
           gender: state.gender || 'male',
           completedDays: state.completedDays,
           checkedExercises: state.checkedExercises,
-          waterCups: state.waterCups
+          waterCups: state.waterCups,
+          waterDate: state.waterDate || getTodayStr()
         }));
       } catch(e) {}
 
@@ -948,6 +951,7 @@ async function saveProgress() {
     cached.completedDays = state.completedDays;
     cached.checkedExercises = state.checkedExercises;
     cached.waterCups = state.waterCups;
+    cached.waterDate = state.waterDate || getTodayStr();
     localStorage.setItem('forge_profile', JSON.stringify(cached));
   } catch(e) {}
 
@@ -1348,7 +1352,25 @@ async function markDayComplete() {
 }
 
 // ── WATER ──────────────────────────────────────────────────
+function getTodayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+}
+
 function renderWater() {
+  // Reset if it's a new day
+  const today = getTodayStr();
+  if (state.waterDate !== today) {
+    state.waterCups = 0;
+    state.waterDate = today;
+    // Save the reset to cache/DB
+    try {
+      const cached = JSON.parse(localStorage.getItem('forge_profile') || '{}');
+      cached.waterCups = 0;
+      cached.waterDate = today;
+      localStorage.setItem('forge_profile', JSON.stringify(cached));
+    } catch(e) {}
+  }
   document.getElementById('waterTracker').innerHTML =
     Array.from({length:8},(_,i) =>
       `<span class="water-cup ${i<state.waterCups?'filled':''}" onclick="toggleWater(${i})">💧</span>`

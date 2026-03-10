@@ -651,16 +651,16 @@ window.addEventListener('DOMContentLoaded', () => {
 
 sb.auth.onAuthStateChange(async (event, session) => {
   if (event === 'SIGNED_IN' && session && !state.user) {
-    // Only handle SIGNED_IN if we don't already have a user loaded
     state.user = session.user;
-    await loadUserProfile();
+    // Only load profile if we're not already showing the app
+    const appVisible = document.getElementById('appScreen').style.display === 'block';
+    if (!appVisible) await loadUserProfile();
   } else if (event === 'SIGNED_OUT') {
     state.user = null;
     state.profile = null;
     localStorage.removeItem('forge_profile');
     showAuth();
   }
-  // Ignore TOKEN_REFRESHED and other events — don't disrupt the current page
 });
 
 function showLanding() {
@@ -823,15 +823,19 @@ async function handleLogin() {
   btn.textContent = '✓ Signed in!';
   state.user = data.user;
 
-  // Save minimal cache NOW so next visit is instant, even before DB loads
+  // Save name to cache immediately so next visit loads fast
   try {
     const existing = JSON.parse(localStorage.getItem('forge_profile') || '{}');
     const meta = data.user.user_metadata || {};
-    if (!existing.name) {
+    const name = existing.name || meta.full_name || data.user.email.split('@')[0] || 'Athlete';
+    if (!existing.level) {
+      // No full cache yet — save partial so we at least know who you are
       localStorage.setItem('forge_profile', JSON.stringify({
-        name: meta.full_name || data.user.email.split('@')[0] || 'Athlete',
-        age: 0, weight: 0, height: 0, goal: '', reps: {}, level: '',
-        gender: 'male', completedDays: {}, checkedExercises: {}, waterCups: 0
+        ...existing, name,
+        gender: existing.gender || 'male',
+        completedDays: existing.completedDays || {},
+        checkedExercises: existing.checkedExercises || {},
+        waterCups: existing.waterCups || 0
       }));
     }
   } catch(e) {}
@@ -856,68 +860,77 @@ async function handleLogout() {
 
 // ── LOAD PROFILE ───────────────────────────────────────────
 async function loadUserProfile() {
-  console.log('loadUserProfile called, user:', state.user?.id);
-  // Fetch with timeout — if DB takes more than 6s, continue anyway
-  const withTimeout = (promise, ms) => Promise.race([
-    promise,
-    new Promise(resolve => setTimeout(() => resolve({ data: null, error: 'timeout' }), ms))
-  ]);
+  // Step 1: Show app instantly from cache if we have it
+  const cached = (() => { try { return JSON.parse(localStorage.getItem('forge_profile') || 'null'); } catch(e) { return null; } })();
 
-  const [profileRes, progressRes, planRes] = await Promise.all([
-    withTimeout(sb.from('profiles').select('*').eq('id', state.user.id).single(), 6000),
-    withTimeout(sb.from('progress').select('*').eq('user_id', state.user.id).single(), 6000),
-    withTimeout(sb.from('workout_plans').select('*').eq('user_id', state.user.id).order('created_at', { ascending: false }).limit(1).single(), 6000)
-  ]);
-
-  console.log('DB results:', {profile: profileRes.data, profileErr: profileRes.error, plan: planRes.data, planErr: planRes.error});
-
-  // Profile — use auth metadata as fallback if DB is slow
-  if (profileRes.data) {
-    state.profile = profileRes.data;
-    state.name = profileRes.data.full_name || 'Athlete';
-  } else {
-    // Fallback to auth metadata
-    const meta = state.user?.user_metadata;
-    state.name = meta?.full_name || state.user?.email?.split('@')[0] || 'Athlete';
-  }
-  updateUserPill();
-
-  // Progress
-  if (progressRes.data) {
-    state.completedDays = progressRes.data.completed_days || {};
-    state.checkedExercises = progressRes.data.checked_exercises || {};
-    state.waterCups = progressRes.data.water_cups || 0;
+  if (cached && cached.level && cached.name) {
+    // Already showing app from cache — just update user pill
+    state.name = cached.name;
+    updateUserPill();
+    // Sync DB in background — never blocks UI
+    _syncFromDB();
+    return;
   }
 
-  // Workout plan — if exists, go straight to plan page
-  console.log('Plan check:', planRes.data ? 'HAS PLAN' : 'NO PLAN', planRes.error);
-  if (planRes.data) {
-    state.age = planRes.data.age;
-    state.weight = planRes.data.weight;
-    state.height = planRes.data.height;
-    state.goal = planRes.data.goal;
-    state.gender = planRes.data.gender || 'male';
-    state.reps = planRes.data.reps;
-    state.level = planRes.data.level;
-    state.plan = buildFullPlan(state.level);
-    // Cache everything locally so next visit is instant
-    try {
-      localStorage.setItem('forge_profile', JSON.stringify({
-        name: state.name,
-        age: state.age, weight: state.weight, height: state.height,
-        goal: state.goal, reps: state.reps, level: state.level,
-        gender: state.gender || 'male',
-        completedDays: state.completedDays,
-        checkedExercises: state.checkedExercises,
-        waterCups: state.waterCups
-      }));
-    } catch(e) {}
-    showApp();
-    goTo(3);
-    renderPlanPage();
-  } else {
-    showApp();
-    goTo(0);
+  // No cache — must wait for DB (first login ever)
+  await _syncFromDB(true);
+}
+
+async function _syncFromDB(showAfter = false) {
+  if (!state.user) return;
+  try {
+    const [profileRes, progressRes, planRes] = await Promise.all([
+      sb.from('profiles').select('*').eq('id', state.user.id).single(),
+      sb.from('progress').select('*').eq('user_id', state.user.id).single(),
+      sb.from('workout_plans').select('*').eq('user_id', state.user.id).order('created_at', { ascending: false }).limit(1).single()
+    ]);
+
+    if (profileRes.data) {
+      state.profile = profileRes.data;
+      state.name = profileRes.data.full_name || state.name || 'Athlete';
+    } else {
+      const meta = state.user?.user_metadata;
+      state.name = state.name || meta?.full_name || state.user?.email?.split('@')[0] || 'Athlete';
+    }
+    updateUserPill();
+
+    if (progressRes.data) {
+      state.completedDays = progressRes.data.completed_days || {};
+      state.checkedExercises = progressRes.data.checked_exercises || {};
+      state.waterCups = progressRes.data.water_cups || 0;
+    }
+
+    if (planRes.data) {
+      state.age = planRes.data.age;
+      state.weight = planRes.data.weight;
+      state.height = planRes.data.height;
+      state.goal = planRes.data.goal;
+      state.gender = planRes.data.gender || 'male';
+      state.reps = planRes.data.reps;
+      state.level = planRes.data.level;
+      state.plan = buildFullPlan(state.level);
+
+      // Save complete cache
+      try {
+        localStorage.setItem('forge_profile', JSON.stringify({
+          name: state.name,
+          age: state.age, weight: state.weight, height: state.height,
+          goal: state.goal, reps: state.reps, level: state.level,
+          gender: state.gender || 'male',
+          completedDays: state.completedDays,
+          checkedExercises: state.checkedExercises,
+          waterCups: state.waterCups
+        }));
+      } catch(e) {}
+
+      if (showAfter) { showApp(); goTo(3); renderPlanPage(); }
+      else { renderPlanPage(); } // silently refresh rendered page
+    } else {
+      if (showAfter) { showApp(); goTo(0); }
+    }
+  } catch(e) {
+    // DB failed — if we need to show something, fall back to landing
+    if (showAfter) showAuth();
   }
 }
 

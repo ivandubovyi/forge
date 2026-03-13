@@ -186,6 +186,7 @@
   .ex-row.checked .ex-name-main { text-decoration:line-through; opacity:0.45; }
   .ex-name-main { font-weight:600; font-size:0.92rem; }
   .ex-name-sub { font-size:0.72rem; color:var(--muted); margin-top:2px; }
+  .ex-pills-row { display:none; }
   .ex-pill { font-family:'Space Mono',monospace; font-size:0.78rem; font-weight:700; padding:6px 12px; border-radius:8px; background:rgba(232,255,71,0.15); color:var(--accent); white-space:nowrap; text-align:center; border:1px solid rgba(232,255,71,0.2); }
   .ex-pill.orange { background:rgba(255,107,53,0.15); color:var(--accent2); border-color:rgba(255,107,53,0.2); }
   .ex-pill.blue { background:rgba(71,200,255,0.15); color:var(--accent3); border-color:rgba(71,200,255,0.2); }
@@ -270,18 +271,139 @@
 
   /* ── RESPONSIVE ── */
   @media(max-width:768px) {
-    header { padding:14px 18px; }
-    .hero { padding:36px 18px 28px; }
-    .section { padding:0 18px 56px; }
-    .calendar-grid { grid-template-columns:repeat(4,1fr); }
-    .ex-row { grid-template-columns:28px 1fr; gap:7px; flex-wrap:wrap; }
-    .ex-row>*:nth-child(3),.ex-row>*:nth-child(4) { display:flex !important; font-size:0.72rem; padding:5px 9px; }
-    .ex-row>*:nth-child(5) { display:none; }
-    .ex-pills-mobile { display:flex; gap:6px; flex-wrap:wrap; margin-top:4px; }
+    /* ── Layout ── */
+    header { padding:12px 16px; }
+    .hero { padding:32px 16px 24px; }
+    .section { padding:0 16px 80px; }
+
+    /* ── Landing ── */
+    #landingScreen .hero { padding:60px 16px 40px; }
+    #landingScreen h1 { font-size:clamp(3rem,14vw,5rem) !important; }
+
+    /* ── Auth box ── */
+    .auth-box { padding:28px 20px; border-radius:0; min-height:100vh; justify-content:center; }
+    #authScreen { align-items:flex-start; }
+
+    /* ── Stats banner ── */
+    .stats-banner { grid-template-columns:repeat(2,1fr); gap:10px; }
+    .stat-card { padding:14px; }
+    .stat-num { font-size:1.6rem; }
+
+    /* ── Calendar ── */
+    .calendar-grid { grid-template-columns:repeat(4,1fr); gap:6px; }
+    .day-card { padding:8px 4px; }
+    .day-label { font-size:0.55rem; padding:2px 5px; }
+    .day-icon { font-size:1rem; }
+    .day-num { font-size:0.65rem; }
+    .week-title { font-size:1.1rem; }
+
+    /* ── Exercise rows — full width, stacked pills ── */
+    .ex-row {
+      grid-template-columns: 36px 1fr;
+      gap: 10px;
+      padding: 14px 12px;
+    }
+    .ex-row > *:nth-child(3),
+    .ex-row > *:nth-child(4) {
+      display: none !important;
+    }
+    /* Show pills below the name on mobile */
+    .ex-name-main { font-size:0.92rem; }
+    .ex-name-sub { font-size:0.72rem; }
+    .ex-pills-row { display:flex !important; gap:6px; flex-wrap:wrap; margin-top:6px; }
+    .ex-pill-desktop { display:none !important; }
+    .ex-pill { font-size:0.72rem; padding:4px 10px; }
+
+    /* ── Check box bigger for touch ── */
+    .check-box { width:26px; height:26px; border-radius:6px; font-size:0.8rem; }
+
+    /* ── Panel header ── */
+    .panel-header { flex-direction:column; gap:8px; }
+    .panel-title { font-size:1.4rem; }
+    .panel-meta { gap:7px; }
+
+    /* ── Nutrition grid ── */
+    .nutrition-grid { grid-template-columns:1fr; }
+    .nutrition-card { padding:18px; }
+
+    /* ── Water tracker ── */
+    .water-cup { font-size:1.8rem; }
+
+    /* ── Fancy sections ── */
+    .fancy-section { padding:20px 16px; }
+
+    /* ── Form grid ── */
+    .form-grid { grid-template-columns:1fr; gap:14px; }
+
+    /* ── Buttons ── */
+    .btn-row { flex-direction:column; }
+    .btn-row .btn { width:100%; justify-content:center; }
+
+    /* ── User pill — hide name, show avatar only ── */
+    #userPillName { display:none; }
+    .user-pill { padding:6px 10px; gap:6px; }
+
+    /* ── Step dots — hide on small screens ── */
+    .step-indicator { display:none; }
+
+    /* ── Bottom safe area padding ── */
+    .section { padding-bottom:100px; }
   }
-  @media(max-width:480px) { .calendar-grid { grid-template-columns:repeat(3,1fr); } }
+
+  @media(max-width:480px) {
+    .calendar-grid { grid-template-columns:repeat(4,1fr); }
+    .stats-banner { grid-template-columns:repeat(2,1fr); }
+    h1 { font-size:clamp(2.8rem,12vw,4rem) !important; }
+  }
 
 
+  /* ── Mobile bottom nav ── */
+  .mobile-nav { display:none; }
+  @media(max-width:768px) {
+    .mobile-nav {
+      display: flex;
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: rgba(10,10,11,0.97);
+      border-top: 1px solid var(--border);
+      backdrop-filter: blur(16px);
+      z-index: 200;
+      padding: 8px 0 max(8px, env(safe-area-inset-bottom));
+    }
+    .mobile-nav-btn {
+      flex: 1; display:flex; flex-direction:column; align-items:center; gap:3px;
+      background:none; border:none; color:var(--muted); font-size:0.65rem;
+      font-family:'DM Sans',sans-serif; font-weight:600; cursor:pointer;
+      padding:6px 0; transition:color 0.2s; text-transform:uppercase; letter-spacing:0.05em;
+    }
+    .mobile-nav-btn span:first-child { font-size:1.3rem; }
+    .mobile-nav-btn.active { color:var(--accent); }
+    .mobile-nav-btn:last-child { color:rgba(255,71,87,0.6); }
+    /* Hide header sign out button on mobile — use bottom nav instead */
+    header .btn-outline { display:none; }
+    /* Hide sign out text in user pill */
+    .user-pill button { display:none; }
+  }
+  /* ── Mobile bottom nav ── */
+  .mobile-nav { display:none; }
+  @media(max-width:768px) {
+    .mobile-nav {
+      display:flex; position:fixed; bottom:0; left:0; right:0;
+      background:rgba(10,10,11,0.97); border-top:1px solid var(--border);
+      backdrop-filter:blur(16px); z-index:200;
+      padding:8px 0 max(8px, env(safe-area-inset-bottom));
+    }
+    .mobile-nav-btn {
+      flex:1; display:flex; flex-direction:column; align-items:center; gap:3px;
+      background:none; border:none; color:var(--muted); font-size:0.65rem;
+      font-family:'DM Sans',sans-serif; font-weight:600; cursor:pointer;
+      padding:6px 0; transition:color 0.2s; text-transform:uppercase; letter-spacing:0.05em;
+    }
+    .mobile-nav-btn span:first-child { font-size:1.3rem; }
+    .mobile-nav-btn.active { color:var(--accent); }
+    .mobile-nav-btn:last-child { color:rgba(255,71,87,0.6); }
+    .user-pill button { display:none; }
+  }
 </style>
 </head>
 <body>
@@ -561,6 +683,19 @@
       </div>
     </div>
   </div>
+
+  <!-- MOBILE BOTTOM NAV -->
+  <nav class="mobile-nav" id="mobileNav">
+    <button class="mobile-nav-btn" onclick="mobileNavTo(3)" id="mnav-plan">
+      <span>📋</span><span>Plan</span>
+    </button>
+    <button class="mobile-nav-btn" onclick="mobileNavTo(1)" id="mnav-stats">
+      <span>📊</span><span>Stats</span>
+    </button>
+    <button class="mobile-nav-btn" onclick="handleLogout()" id="mnav-logout">
+      <span>🚪</span><span>Sign Out</span>
+    </button>
+  </nav>
 </div>
 
 <script>
@@ -686,6 +821,7 @@ function showApp() {
   document.getElementById('landingScreen').style.display = 'none';
   document.getElementById('authScreen').style.display = 'none';
   document.getElementById('appScreen').style.display = 'block';
+  document.getElementById('mobileNav').style.display = '';
 }
 
 // ── AUTH TABS ──────────────────────────────────────────────
@@ -993,6 +1129,27 @@ async function saveWorkoutPlan() {
 }
 
 // ── NAVIGATION ─────────────────────────────────────────────
+function mobileNavTo(page) {
+  goTo(page);
+  document.querySelectorAll('.mobile-nav-btn').forEach(b => b.classList.remove('active'));
+  const map = {3:'mnav-plan', 1:'mnav-stats'};
+  if (map[page]) document.getElementById(map[page])?.classList.add('active');
+}
+
+function mobileNavTo(page) {
+  goTo(page);
+  document.querySelectorAll('.mobile-nav-btn').forEach(b => b.classList.remove('active'));
+  const map = {3:'mnav-plan', 1:'mnav-stats'};
+  if (map[page]) document.getElementById(map[page])?.classList.add('active');
+}
+
+function mobileNavTo(page) {
+  goTo(page);
+  document.querySelectorAll('.mobile-nav-btn').forEach(b => b.classList.remove('active'));
+  const map = {3:'mnav-plan', 1:'mnav-stats'};
+  if (map[page]) document.getElementById(map[page])?.classList.add('active');
+}
+
 function goTo(page) {
   document.querySelectorAll('.page').forEach((p, i) => p.classList.toggle('active', i === page));
   for (let i = 0; i < 4; i++) {
@@ -1165,14 +1322,47 @@ const exerciseDB = {
   ]
 };
 
-function getReps(base, sets, level, gender, week) {
-  // Very gradual progression — start low, add ~5% per week
-  const levelBase = { Beginner:0.28, Intermediate:0.50, Advanced:0.75, Master:1.0 }[level];
-  const weekBonus = 1 + ((week || 0) * 0.05); // +5% each week
-  const gm = gender === 'female' ? 0.85 : 1.0;
-  const reps = Math.max(3, Math.round(base * levelBase * weekBonus * gm));
-  const setsCount = level === 'Beginner' ? 2 : level === 'Intermediate' ? 3 : level === 'Advanced' ? 3 : 4;
-  return { reps, sets: setsCount };
+// ── REP CALCULATOR ────────────────────────────────────────
+// Personalised to the user's actual max reps.
+// Week 0 (day 1-7):   starts at 80% of max
+// Week 4 (day 28-31): peaks at ~130% of max
+// Any rep value > 20 gets capped and scaled down so it's always achievable.
+function calcReps(userMax, week, gender) {
+  // Start at 80% of their max, add ~10% each week
+  const gm = gender === 'female' ? 0.9 : 1.0;
+  const raw = Math.round(userMax * (0.80 + week * 0.10) * gm);
+  // Cap single-set reps at 20 — if higher, the exercise is done in more sets
+  return Math.max(3, Math.min(raw, 20));
+}
+
+function calcSets(userMax, week, level) {
+  // More sets as weeks go on — start with 2-3, end with 3-4
+  const base = level === 'Beginner' ? 2 : 3;
+  const bonus = week >= 3 ? 1 : 0;
+  return base + bonus;
+}
+
+// Map exercise types to which user max-rep to reference
+const repRef = {
+  pushup:  ['chest[0]','chest[1]','chest[2]','chest[3]','chest[4]','chest[5]','back[4]','full[0]'],
+  situp:   ['core[0]','core[2]','core[4]','core[5]'],
+  squat:   ['legs[0]','legs[1]','legs[6]'],
+  lunge:   ['legs[2]','legs[3]'],
+  plank:   ['core[1]'],   // hold in seconds
+  burpee:  ['full[0]','full[1]','full[2]','full[3]','core[3]','back[5]','legs[4]','legs[5]'],
+};
+
+// Given an exercise, find which user max-rep to use
+function getRefMax(exName) {
+  const name = exName.toLowerCase();
+  if (name.includes('push') || name.includes('dip') || name.includes('shoulder tap')) return state.reps.pushup || 10;
+  if (name.includes('sit-up') || name.includes('crunch') || name.includes('leg raise') || name.includes('russian') || name.includes('bicycle')) return state.reps.situp || 15;
+  if (name.includes('squat') || name.includes('glute') || name.includes('bridge')) return state.reps.squat || 15;
+  if (name.includes('lunge') || name.includes('reverse lunge')) return state.reps.lunge || 12;
+  if (name.includes('plank') || name.includes('wall sit')) return state.reps.plank || 30; // seconds
+  if (name.includes('burpee') || name.includes('high knee') || name.includes('jumping jack') || name.includes('mountain') || name.includes('bear') || name.includes('inchworm') || name.includes('calf')) return state.reps.burpee || 10;
+  if (name.includes('superman') || name.includes('snow angel') || name.includes('good morning') || name.includes('towel')) return state.reps.pushup || 10;
+  return 10; // safe default
 }
 
 const monthSchedule = [
@@ -1187,38 +1377,43 @@ function buildFullPlan(level) {
   const gender = state.gender || 'male';
   return monthSchedule.map((type, i) => {
     const weekNum = Math.floor(i / 7);
-    // Slower progression: +5% per week instead of +10%
-    const prog = 1 + weekNum * 0.05;
-    return { day: i+1, type, ...buildWorkoutDay(type, level, prog, gender) };
+    return { day: i+1, type, ...buildWorkoutDay(type, level, weekNum, gender) };
   });
 }
 
-function buildWorkoutDay(type, level, prog, gender) {
+function buildWorkoutDay(type, level, week, gender) {
   gender = gender || state.gender || 'male';
   const restSec = level === 'Master' ? 45 : level === 'Advanced' ? 50 : 60;
-  const dur = { Beginner:'30–35 min', Intermediate:'40–45 min', Advanced:'50–55 min', Master:'60 min' }[level];
+  // Duration grows as weeks progress
+  const baseDur = { Beginner:25, Intermediate:35, Advanced:45, Master:55 }[level];
+  const dur = `${baseDur + week * 2}–${baseDur + week * 2 + 10} min`;
 
   const templates = {
     chest: { name:'Chest + Shoulders + Triceps', tag:'chest', icon:'💪', duration: dur,
-      exercises: [[exerciseDB.chest[0],12,3],[exerciseDB.chest[1],10,3],[exerciseDB.chest[3],8,3],[exerciseDB.chest[2],10,3],[exerciseDB.chest[5],12,3]] },
+      exercises: [exerciseDB.chest[0], exerciseDB.chest[1], exerciseDB.chest[3], exerciseDB.chest[2], exerciseDB.chest[5]] },
     back: { name:'Back + Biceps + Arms', tag:'back', icon:'🔝', duration: dur,
-      exercises: [[exerciseDB.back[0],12,3],[exerciseDB.back[1],10,3],[exerciseDB.back[4],10,3],[exerciseDB.back[2],8,3],[exerciseDB.back[3],12,3]] },
+      exercises: [exerciseDB.back[0], exerciseDB.back[1], exerciseDB.back[4], exerciseDB.back[2], exerciseDB.back[3]] },
     legs: { name:'Leg Day 🔥', tag:'legs', icon:'🦵', duration: dur,
-      exercises: [[exerciseDB.legs[0],15,3],[exerciseDB.legs[2],12,3],[exerciseDB.legs[4],30,3,true],[exerciseDB.legs[6],15,3],[exerciseDB.legs[1],10,3],[exerciseDB.legs[5],20,3]] },
+      exercises: [exerciseDB.legs[0], exerciseDB.legs[2], exerciseDB.legs[4], exerciseDB.legs[6], exerciseDB.legs[1], exerciseDB.legs[5]] },
     full: { name:'Full Body Circuit', tag:'full', icon:'⚡', duration: dur,
-      exercises: [[exerciseDB.full[0],8,3],[exerciseDB.core[3],20,3],[exerciseDB.full[2],30,3],[exerciseDB.core[0],15,3],[exerciseDB.full[3],10,3]] },
-    core: { name:'Core & Abs', tag:'back', icon:'🔥', duration:'25–30 min',
-      exercises: [[exerciseDB.core[0],15,3],[exerciseDB.core[1],30,3,true],[exerciseDB.core[2],20,3],[exerciseDB.core[4],12,3],[exerciseDB.core[5],15,3]] },
+      exercises: [exerciseDB.full[0], exerciseDB.core[3], exerciseDB.full[2], exerciseDB.core[0], exerciseDB.full[3]] },
+    core: { name:'Core & Abs', tag:'back', icon:'🔥', duration: `${20 + week * 2}–${30 + week * 2} min`,
+      exercises: [exerciseDB.core[0], exerciseDB.core[1], exerciseDB.core[2], exerciseDB.core[4], exerciseDB.core[5]] },
     rest: { name:'Rest & Recovery', tag:'rest', icon:'😴', duration:'All day', exercises:[] }
   };
 
   const t = templates[type] || templates.rest;
+  const isHoldType = (ex) => ex.name.includes('Plank') || ex.name.includes('Wall Sit');
   return {
     ...t,
-    exercises: t.exercises.map(([ex, base, sets, isHold]) => {
-      const weekNum = Math.round((prog - 1) / 0.1); // recover week from prog
-      const r = getReps(base, sets, level, gender, weekNum);
-      return { ...ex, reps: r.reps, sets: r.sets, restSec, isHold: !!isHold };
+    exercises: t.exercises.map(ex => {
+      const userMax = getRefMax(ex.name);
+      const reps = calcReps(userMax, week, gender);
+      const sets = calcSets(userMax, week, level);
+      const isHold = isHoldType(ex);
+      // For holds (plank/wall sit), reps = seconds, cap at 60s max
+      const finalReps = isHold ? Math.min(Math.round(userMax * (0.70 + week * 0.08)), 60) : reps;
+      return { ...ex, reps: finalReps, sets, restSec, isHold };
     })
   };
 }
@@ -1309,18 +1504,30 @@ function renderWorkoutPanel(day) {
     return;
   }
 
-  const checkedCount = day.exercises.filter((_, i) => state.checkedExercises[`${day.day-1}-${i}`]).length;
+  const checkedCount = day.exercises.filter((ex, i) => {
+    const sk = `${day.day-1}-${ex.name.replace(/\s+/g,'_').toLowerCase()}`;
+    const lk = `${day.day-1}-${i}`;
+    return !!(state.checkedExercises[sk] || state.checkedExercises[lk]);
+  }).length;
   const pct = Math.round(checkedCount / day.exercises.length * 100);
 
   document.getElementById('exerciseList').innerHTML = day.exercises.map((ex, i) => {
-    const key = `${day.day-1}-${i}`;
-    const checked = !!state.checkedExercises[key];
+    const stableKey = `${day.day-1}-${ex.name.replace(/\s+/g,'_').toLowerCase()}`;
+    const legacyKey = `${day.day-1}-${i}`;
+    const checked = !!(state.checkedExercises[stableKey] || state.checkedExercises[legacyKey]);
     const repLabel = ex.isHold ? `${ex.reps}s hold` : `${ex.reps} reps`;
     return `<div class="ex-row ${checked?'checked':''}" onclick="toggleCheck(${day.day-1},${i})">
       <div class="check-box">✓</div>
-      <div><div class="ex-name-main">${ex.name}</div><div class="ex-name-sub">${ex.tip} · ${ex.target}</div></div>
-      <div class="ex-pill">${ex.sets} sets</div>
-      <div class="ex-pill orange">${repLabel}</div>
+      <div>
+        <div class="ex-name-main">${ex.name}</div>
+        <div class="ex-name-sub">${ex.tip} · ${ex.target}</div>
+        <div class="ex-pills-row">
+          <div class="ex-pill">${ex.sets} sets</div>
+          <div class="ex-pill orange">${repLabel}</div>
+        </div>
+      </div>
+      <div class="ex-pill ex-pill-desktop">${ex.sets} sets</div>
+      <div class="ex-pill orange ex-pill-desktop">${repLabel}</div>
     </div>`;
   }).join('');
 
@@ -1332,9 +1539,19 @@ function renderWorkoutPanel(day) {
 }
 
 async function toggleCheck(dayIdx, exIdx) {
-  const key = `${dayIdx}-${exIdx}`;
-  if (state.checkedExercises[key]) delete state.checkedExercises[key];
-  else state.checkedExercises[key] = true;
+  const ex = state.plan[dayIdx]?.exercises[exIdx];
+  // Use stable key: day + exercise name (survives code changes)
+  const stableKey = `${dayIdx}-${ex ? ex.name.replace(/\s+/g,'_').toLowerCase() : exIdx}`;
+  // Also support legacy index-based keys for backwards compat
+  const legacyKey = `${dayIdx}-${exIdx}`;
+  const isChecked = state.checkedExercises[stableKey] || state.checkedExercises[legacyKey];
+  if (isChecked) {
+    delete state.checkedExercises[stableKey];
+    delete state.checkedExercises[legacyKey];
+  } else {
+    state.checkedExercises[stableKey] = true;
+    delete state.checkedExercises[legacyKey]; // migrate to stable key
+  }
   renderWorkoutPanel(state.plan[dayIdx]);
   await saveProgress();
 }
